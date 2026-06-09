@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Script Editor & Hub</title>
+
+<script type="text/javascript" src="https://gc.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=w4Tq35QFVoGXzi34RmCPy9zb2yjEsQtC69ugj5khuUvPXl_6qO9aqHRQmbgW7WhqvyDmwl6CTbVBrbgETnBzzZrDfKfCkWMhBL2BBhSFChTLGytnUL_trPeW9xwSNXYIGE7D0FBOt0DyFNa_J7S2mvk_5ZxxdGmo7BW7FGcCToCGxGaypppi3SxIEJTVdqXY5EI3WltgpPeMw8j2U8CilHZexsnALKH_6LUc6utYwUcoR_J4kmDRE8QVY2vUGvu4NazSRR8PfkCqdhmNGv_-Iw" charset="UTF-8"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,
+body{
+    width:100%;
+    height:100%;
+    font-family:'Segoe UI', sans-serif;
+    color:white;
+}
+
+:root{
+    --primary:#FDE047;
+    --primary-soft:#FEF9C3;
+    --primary-dark:#3f3f3f;
+    --bg-dark: rgb(30, 30, 30);
+    --bg-darker: rgb(20, 20, 20);
+    --bg-lighter: rgb(45, 45, 45);
+}
+
+body{
+    overflow:hidden;
+    background: var(--bg-dark);
+    display:flex; 
+}
+
+/* SIDEBAR */
+#sidebar {
+    width: 60px;
+    background: var(--bg-darker);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding-top: 20px;
+    z-index: 100;
+}
+
+.nav-item {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color: #888;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.nav-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: white;
+}
+
+.nav-item.active {
+    background: rgba(253, 224, 71, 0.15);
+    color: var(--primary);
+}
+
+/* MAIN CONTENT AREA */
+#main-content {
+    flex-grow: 1;
+    position: relative;
+    background: var(--bg-dark);
+}
+
+/* EDITOR VIEW */
+#editor-view {
+    display: block; 
+    width: 100%;
+    height: 100%;
+}
+
+/* HUB VIEW */
+#hub-view {
+    display: none; 
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* --- ORIGINAL EDITOR STYLES --- */
+#tab-bar{
+    height:39px;
+    display:flex;
+    align-items:center;
+    background:rgba(20, 20, 20, .9);
+    backdrop-filter:blur(18px);
+    border-bottom:1px solid rgba(253, 224, 71, .18);
+    padding:0 8px;
+}
+
+.tabs-container{ display:flex; align-items:center; height:100%; }
+
+.tab{
+    height:31px;
+    min-width:120px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 14px;
+    margin-right:4px;
+    background:rgba(253, 224, 71, .08);
+    backdrop-filter:blur(14px);
+    border:1px solid rgba(253, 224, 71, .14);
+    border-radius:8px;
+    color:#e2e8f0;
+    cursor:pointer;
+    transition:.13s ease;
+    position:relative;
+    user-select:none;
+}
+
+.tab.active{
+    color:#000000;
+    border-color:rgba(253, 224, 71, .55);
+    background:rgba(253, 224, 71, .9);
+    box-shadow:0 0 12px rgba(253, 224, 71, .16), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.tab:hover:not(.active){
+    background:rgba(253, 224, 71, .12);
+    border-color:rgba(253, 224, 71, .22);
+}
+
+.tab-title{ font-size:13px; font-weight:600; }
+
+.tab-code-icon{ width:12px; height:12px; stroke-width:2; color:var(--primary-dark); }
+.tab:not(.active) .tab-code-icon { color:var(--primary-soft); }
+
+.tab-close{
+    width:14px; height:14px; margin-left:auto;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:4px; opacity:0; transition:.13s ease;
+}
+.tab:hover .tab-close{ opacity:.7; }
+.tab-close:hover{ opacity:1 !important; background:rgba(255, 255, 255, .18); }
+.tab-close i{ width:11px; height:11px; }
+
+.new-tab-btn{
+    width:26px; height:26px; margin-left:4px;
+    display:flex; align-items:center; justify-content:center;
+    border:none; background:transparent; color:#FDE047;
+    border-radius:6px; cursor:pointer; transition:.13s ease;
+}
+.new-tab-btn:hover{ background:rgba(253, 224, 71, .14); color:white; box-shadow:0 0 10px rgba(253, 224, 71, .18); }
+.new-tab-btn i{ width:14px; height:14px; }
+
+#container{
+    width:100%;
+    height:calc(100vh - 39px);
+    background:transparent;
+}
+
+.monaco-editor, .monaco-editor-background, .monaco-editor .margin, .monaco-editor-background canvas{
+    background:transparent !important;
+}
+
+/* --- HUB STYLES --- */
+.hub-header { margin-bottom: 20px; }
+.hub-title { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 10px; display:flex; align-items:center; gap:10px; }
+
+.search-container {
+    position: relative; max-width: 600px; width: 100%;
+}
+.search-input {
+    width: 100%; padding: 12px 15px 12px 45px;
+    background: var(--bg-lighter); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; color: white; font-size: 14px; outline: none;
+    transition: 0.2s;
+}
+.search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(253, 224, 71, 0.2); }
+.search-icon {
+    position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+    color: #888; width: 18px; height: 18px;
+}
+
+.scripts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.script-card {
+    background: var(--bg-lighter);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+.script-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    border-color: rgba(253, 224, 71, 0.3);
+}
+
+.card-header {
+    height: 120px;
+    background: linear-gradient(45deg, #1e1e1e, #2a2a2a);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.1);
+}
+.card-header img { width: 100%; height: 100%; object-fit: cover; }
+
+.card-body { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
+.script-name { font-size: 16px; font-weight: 600; color: white; margin-bottom: 5px; }
+.game-name { font-size: 12px; color: #888; margin-bottom: 15px; }
+
+.btn-get {
+    margin-top: auto;
+    background: var(--primary);
+    color: black;
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    width: 100%;
+}
+.btn-get:hover { filter: brightness(1.1); }
+
+.loading-spinner {
+    text-align: center; padding: 40px; color: #888;
+}
+
+/* Modal for Script Details */
+#script-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    z-index: 1000; align-items: center; justify-content: center;
+    backdrop-filter: blur(5px);
+}
+#script-modal.open { display: flex; }
+.modal-content {
+    background: var(--bg-lighter); width: 90%; max-width: 600px;
+    border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+    padding: 20px; position: relative; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+.modal-close {
+    position: absolute; top: 15px; right: 15px;
+    background: transparent; border: none; color: #fff;
+    cursor: pointer; font-size: 20px;
+}
+.code-area {
+    width: 100%; height: 300px; background: #111;
+    border: 1px solid #333; border-radius: 8px;
+    color: #ddd; padding: 10px; font-family: monospace;
+    resize: none; margin: 15px 0; font-size: 13px;
+}
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-copy {
+    background: #444; color: white; border: none;
+    padding: 10px 20px; border-radius: 6px; cursor: pointer;
+}
+.btn-copy:hover { background: #555; }
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+    <div class="nav-item active" onclick="switchView('editor')" title="Editor">
+        <i data-lucide="file-code"></i>
+    </div>
+    <div class="nav-item" onclick="switchView('hub')" title="Script Hub">
+        <i data-lucide="layout-grid"></i>
+    </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div id="main-content">
+
+    <!-- EDITOR SECTION -->
+    <div id="editor-view">
+        <div id="tab-bar">
+            <div class="tabs-container" id="tabs-container"></div>
+            <button class="new-tab-btn" id="new-tab-btn"><i data-lucide="plus"></i></button>
+        </div>
+        <div id="container"></div>
+    </div>
+
+    <!-- HUB SECTION -->
+    <div id="hub-view">
+        <div class="hub-header">
+            <div class="hub-title">
+                <i data-lucide="zap"></i> ScriptBlox Hub
+            </div>
+            <div style="font-size: 14px; color: #888; margin-bottom: 15px;">
+                Updates daily with the latest scripts.
+            </div>
+            <div class="search-container">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="hub-search" class="search-input" placeholder="Search for games or scripts...">
+            </div>
+        </div>
+        
+        <div id="scripts-grid" class="scripts-grid">
+            <div class="loading-spinner">Loading scripts...</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL -->
+<div id="script-modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h2 id="modal-title" style="color: var(--primary); margin-bottom: 5px;">Script Name</h2>
+        <p id="modal-game" style="color: #888; font-size: 14px;">Game Name</p>
+        
+        <textarea id="modal-script" class="code-area" readonly></textarea>
+        
+        <div class="modal-actions">
+            <button class="btn-copy" onclick="copyScript()">Copy to Clipboard</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+<script>
+lucide.createIcons();
+
+// --- NAVIGATION LOGIC ---
+function switchView(viewName) {
+    const editorView = document.getElementById('editor-view');
+    const hubView = document.getElementById('hub-view');
+    const navItems = document.querySelectorAll('.nav-item');
+
+    if (viewName === 'editor') {
+        editorView.style.display = 'block';
+        hubView.style.display = 'none';
+        navItems[0].classList.add('active');
+        navItems[1].classList.remove('active');
+        if(window.editor) window.editor.layout();
+    } else {
+        editorView.style.display = 'none';
+        hubView.style.display = 'block';
+        navItems[0].classList.remove('active');
+        navItems[1].classList.add('active');
+        fetchScripts(); // Fetch when opening hub
+    }
+}
+
+// --- MONACO EDITOR SETUP ---
+require.config({
+    paths:{ vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }
+});
+
+require(['vs/editor/editor.main'],function(){
+    monaco.editor.defineTheme('mediumTheme',{
+        base:'vs-dark', inherit:true,
+        rules:[
+            { token:'keyword', foreground:'FDE047' },
+            { token:'string', foreground:'FEF9C3' },
+            { token:'number', foreground:'EAB308' },
+            { token:'comment', foreground:'525252' },
+            { token:'type', foreground:'FEF08A' }
+        ],
+        colors:{
+            'editor.background':'#00000000',
+            'editorLineNumber.foreground':'#404040',
+            'editorLineNumber.activeForeground':'#FDE047',
+            'editorCursor.foreground':'#FDE047',
+            'editor.lineHighlightBackground':'#FDE04714',
+            'editor.selectionBackground':'#FDE04744',
+            'editorIndentGuide.background':'#2a2a2a',
+            'editorIndentGuide.activeBackground':'#525252',
+            'editor.findMatchBackground':'#FDE04755',
+            'editor.findMatchHighlightBackground':'#FDE04722',
+            'editor.selectionHighlightBackground':'#FDE04722'
+        }
+    });
+
+    window.editor = monaco.editor.create(document.getElementById('container'),{
+        value:'', language:'lua', theme:'mediumTheme', automaticLayout:true,
+        minimap:{ enabled:false }, fontSize:13, lineHeight:22,
+        fontFamily:'Consolas, monospace', smoothScrolling:true,
+        scrollBeyondLastLine:false, cursorBlinking:'smooth',
+        renderLineHighlight:'line', padding:{ top:10 }
+    });
+
+    // --- TAB LOGIC ---
+    const tabsContainer = document.getElementById('tabs-container');
+    const newTabBtn = document.getElementById('new-tab-btn');
+    let tabs = [], activeTabId = null, tabCounter = 0;
+
+    function saveTabs(){
+        localStorage.setItem('medium-tabs', JSON.stringify(tabs));
+        localStorage.setItem('medium-active-tab', activeTabId);
+    }
+
+    function createNewTab(){
+        tabCounter++;
+        const tab = { id:'tab-'+Date.now(), name:`Untitled ${tabCounter}`, code:'' };
+        tabs.push(tab);
+        createTabElement(tab);
+        switchTab(tab.id);
+        saveTabs();
+    }
+
+    function createTabElement(tab){
+        const el = document.createElement('div');
+        el.className = 'tab'; el.dataset.id = tab.id;
+        el.innerHTML = `
+            <i data-lucide="code-2" class="tab-code-icon"></i>
+            <span class="tab-title">${tab.name}</span>
+            <div class="tab-close"><i data-lucide="x"></i></div>
+        `;
+        el.addEventListener('click',e=>{ if(!e.target.closest('.tab-close')) switchTab(tab.id); });
+        el.querySelector('.tab-close').addEventListener('click',e=>{ e.stopPropagation(); closeTab(tab.id); });
+        tabsContainer.appendChild(el);
+        lucide.createIcons();
+    }
+
+    function switchTab(id){
+        const tab = tabs.find(t=>t.id===id);
+        if(!tab) return;
+        if(activeTabId){
+            const current = tabs.find(t=>t.id===activeTabId);
+            if(current) current.code = window.editor.getValue();
+        }
+        activeTabId = id;
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        const tabEl = document.querySelector(`.tab[data-id="${id}"]`);
+        if(tabEl) tabEl.classList.add('active');
+        window.editor.setValue(tab.code);
+        saveTabs();
+    }
+
+    function closeTab(id){
+        const index = tabs.findIndex(t=>t.id===id);
+        if(index === -1) return;
+        tabs.splice(index,1);
+        document.querySelector(`.tab[data-id="${id}"]`)?.remove();
+        if(activeTabId === id){
+            if(tabs.length > 0) switchTab(tabs[0].id);
+            else createNewTab();
+        }
+        saveTabs();
+    }
+
+    window.editor.onDidChangeModelContent(()=>{
+        const current = tabs.find(t=>t.id===activeTabId);
+        if(current){ current.code = window.editor.getValue(); saveTabs(); }
+    });
+
+    newTabBtn.addEventListener('click', createNewTab);
+
+    const savedTabs = localStorage.getItem('medium-tabs');
+    const savedActive = localStorage.getItem('medium-active-tab');
+    if(savedTabs){
+        tabs = JSON.parse(savedTabs);
+        tabs.forEach(createTabElement);
+        if(savedActive) switchTab(savedActive);
+        else createNewTab();
+    } else {
+        createNewTab();
+    }
+});
+
+// --- SCRIPTBLOX HUB LOGIC ---
+const searchInput = document.getElementById('hub-search');
+const grid = document.getElementById('scripts-grid');
+let searchTimeout = null;
+
+searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => fetchScripts(e.target.value), 500);
+});
+
+async function fetchScripts(query = '') {
+    grid.innerHTML = '<div class="loading-spinner">Connecting to ScriptBlox...</div>';
+    
+    try {
+        // Use AllOrigins proxy to bypass CORS
+        const targetUrl = `https://scriptblox.com/api/script/search?q=${encodeURIComponent(query)}&limit=12`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const proxyData = await response.json();
+        
+        // AllOrigins returns the content in a 'contents' string
+        const data = JSON.parse(proxyData.contents);
+
+        if(data && data.result && data.result.scripts) {
+            renderScripts(data.result.scripts);
+        } else {
+            grid.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No scripts found.</div>';
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        grid.innerHTML = `
+            <div style="text-align:center; padding:20px; color:#f55;">
+                Failed to load scripts.<br>
+                <span style="font-size:12px; color:#888;">${error.message}</span>
+            </div>
+        `;
+    }
+}
+
+function renderScripts(scripts) {
+    grid.innerHTML = '';
+    scripts.forEach(script => {
+        const card = document.createElement('div');
+        card.className = 'script-card';
+        
+        // Fallback image handling
+        const imgUrl = script.game && script.game.image ? script.game.image : 'https://via.placeholder.com/300x150/1e1e1e/fde047?text=No+Image';
+        
+        card.innerHTML = `
+            <div class="card-header">
+                <img src="${imgUrl}" alt="${script.title}" onerror="this.src='https://via.placeholder.com/300x150/1e1e1e/fde047?text=No+Image'">
+            </div>
+            <div class="card-body">
+                <div class="script-name">${script.title || 'Untitled Script'}</div>
+                <div class="game-name">${script.game ? script.game.name : 'Universal'}</div>
+                <button class="btn-get">Get Script</button>
+            </div>
+        `;
+        
+        card.addEventListener('click', () => openModal(script));
+        grid.appendChild(card);
+    });
+}
+
+// --- MODAL LOGIC ---
+const modal = document.getElementById('script-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalGame = document.getElementById('modal-game');
+const modalScript = document.getElementById('modal-script');
+
+function openModal(script) {
+    modalTitle.textContent = script.title;
+    modalGame.textContent = script.game ? `Game: ${script.game.name}` : 'Game: Universal';
+    modalScript.value = script.script || '// No script content available';
+    modal.classList.add('open');
+}
+
+function closeModal() {
+    modal.classList.remove('open');
+}
+
+modal.addEventListener('click', (e) => {
+    if(e.target === modal) closeModal();
+});
+
+function copyScript() {
+    modalScript.select();
+    navigator.clipboard.writeText(modalScript.value).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.background = 'var(--primary)';
+        btn.style.color = 'black';
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '#444';
+            btn.style.color = 'white';
+        }, 1500);
+    });
+}
+
+</script>
+
+</body>
+</html>
